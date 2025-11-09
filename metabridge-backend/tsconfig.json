@@ -10,5 +10,5 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true
   },
-  "include": ["src", "tests", "app.ts", "src/db.ts", "src/config.ts", "server.ts", "routes"]
+  "include": ["src", "tests", "app.ts", "src/db.ts", "src/config.ts", "server.ts", "src/routes"]
 }

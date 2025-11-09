@@ -3,8 +3,8 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { pool } from "./db";
-import doctorRoutes from "../routes/doctorRoutes";
-import patientRoutes from "../routes/patientRoutes"; // 👈 Patient routes
+import doctorRoutes from "./routes/doctorRoutes";
+import patientRoutes from "./routes/patientRoutes";
 
 dotenv.config();
 
@@ -15,7 +15,7 @@ app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin || origin.startsWith("http://localhost")) {
-        callback(null, true); // ✅ allow any localhost (5173, 3000, 3002, etc.)
+        callback(null, true); // ✅ allow any localhost (5173, 3000, etc.)
       } else {
         callback(new Error("Not allowed by CORS"));
       }
@@ -29,8 +29,8 @@ app.use(
 app.use(express.json());
 
 // ✅ API Routes
-app.use("/api/doctor", doctorRoutes);
-app.use("/api/patient", patientRoutes);
+app.use("/api/doctor", doctorRoutes);   // Doctor signup/login/OTP
+app.use("/api/patient", patientRoutes); // Patient register/login/OTP
 
 // ✅ Root route for testing
 app.get("/", (req, res) => {

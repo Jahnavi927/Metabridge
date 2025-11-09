@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
   LayoutDashboard,
@@ -15,7 +15,6 @@ import {
   TrendingUp,
   Activity,
   FileText,
-  AlertCircle
 } from 'lucide-react';
 import { HeartbeatLogo } from './HeartbeatLogo';
 import { ThemeToggle } from './ThemeToggle';
@@ -38,9 +37,28 @@ export function DoctorDashboard() {
   const { navigateTo } = useNavigation();
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [notificationCount] = useState(5);
+  const [doctorName, setDoctorName] = useState('');
+
+  // ✅ Load doctor name from context or localStorage
+  useEffect(() => {
+    if (user?.name) {
+      setDoctorName(user.name);
+    } else {
+      const storedUser = localStorage.getItem('doctorUser');
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        setDoctorName(parsed.name || 'Doctor');
+      } else {
+        setDoctorName('Doctor');
+      }
+    }
+  }, [user]);
 
   const handleLogout = () => {
     logout();
+    localStorage.removeItem('doctorUser');
+    localStorage.removeItem('doctorToken');
+    sessionStorage.removeItem('doctorToken');
     navigateTo('landing');
   };
 
@@ -132,7 +150,7 @@ export function DoctorDashboard() {
           <div className="flex items-center justify-between px-8 py-4">
             <div>
               <h1 className="text-2xl text-slate-900 dark:text-white">
-                Welcome back, {user?.name}!
+                Welcome back, {doctorName || 'Doctor'}!
               </h1>
               <p className="text-slate-600 dark:text-slate-400">
                 Here's what's happening with your patients today

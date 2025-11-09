@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { ArrowLeft, Eye, EyeOff, User, Shield } from "lucide-react";
 import { HeartbeatLogo } from "./HeartbeatLogo";
@@ -8,7 +8,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Switch } from "./ui/switch";
-import api from "../api/api"; // ✅ centralized Axios instance
+import api from "../api/api";
 
 export function PatientLogin() {
   const { navigateTo } = useNavigation();
@@ -16,48 +16,76 @@ export function PatientLogin() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
 
   const [formData, setFormData] = useState({
+    name: "",
     email: "",
     password: "",
     twoFactorCode: "",
   });
 
+  // ✅ Auto-login if remembered
+  useEffect(() => {
+    const storedUser = localStorage.getItem("metabridge_user");
+    const storedRole = localStorage.getItem("metabridge_role");
+    if (storedUser && storedRole === "patient") {
+      navigateTo("patient-dashboard");
+    }
+  }, [navigateTo]);
+
+  // ✅ Input handler
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  // ✅ Login + Verify OTP
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMsg("");
     setLoading(true);
 
     try {
-      // ✅ Login API call
-      const response = await api.post("/patient/login", {
-        email: formData.email,
-        password: formData.password,
-        twoFactorCode: twoFactorEnabled ? formData.twoFactorCode : undefined,
-      });
+      if (!otpSent) {
+        // Step 1 — Request OTP
+        const res = await api.post("/patient/login", {
+          email: formData.email.trim(),
+          password: formData.password,
+        });
 
-      const { token, patient } = response.data;
+        alert(res.data.message || "OTP sent to your phone/email.");
+        setOtpSent(true);
+      } else {
+        // Step 2 — Verify OTP
+        const res = await api.post("/patient/verify-otp", {
+          email: formData.email.trim(),
+          otp: otp.trim(),
+        });
 
-      // ✅ Store token locally
-      localStorage.setItem("patientToken", token);
+        const { token, patient } = res.data;
 
-      // ✅ Update global auth context
-      login(patient, "patient");
+        if (rememberMe) {
+          localStorage.setItem("metabridge_user", JSON.stringify(patient));
+          localStorage.setItem("metabridge_role", "patient");
+        }
 
-      // ✅ Navigate to dashboard
-      navigateTo("patient-dashboard");
-    } catch (error: any) {
-      console.error("Login error:", error);
-      setErrorMsg(
-        error.response?.data?.message ||
-          "Invalid email or password. Please try again."
-      );
+        const name =
+          patient?.name || formData.name || formData.email.split("@")[0];
+        login({ name, email: formData.email }, "patient");
+
+        alert(`✅ Welcome back, ${name}`);
+        navigateTo("patient-dashboard");
+      }
+    } catch (err: any) {
+      console.error("Login error:", err);
+      const message =
+        err.response?.data?.message ||
+        (err.code === "ERR_NETWORK"
+          ? "Cannot connect to server. Please check your backend."
+          : "Login failed. Please verify credentials or OTP.");
+      alert(`❌ ${message}`);
     } finally {
       setLoading(false);
     }
@@ -107,6 +135,21 @@ export function PatientLogin() {
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Name */}
+            <div>
+              <Label htmlFor="name">Full Name</Label>
+              <Input
+                id="name"
+                type="text"
+                value={formData.name}
+                onChange={(e) => handleChange("name", e.target.value)}
+                className="mt-2"
+                placeholder="John Doe"
+                required
+                disabled={otpSent}
+              />
+            </div>
+
             {/* Email */}
             <div>
               <Label htmlFor="email">Email Address</Label>
@@ -118,6 +161,7 @@ export function PatientLogin() {
                 className="mt-2"
                 placeholder="patient@example.com"
                 required
+                disabled={otpSent}
               />
             </div>
 
@@ -129,6 +173,7 @@ export function PatientLogin() {
                   type="button"
                   onClick={() => navigateTo("patient-signup")}
                   className="text-sm text-purple-600 dark:text-purple-400 hover:underline"
+                  disabled={otpSent}
                 >
                   Forgot password?
                 </button>
@@ -140,6 +185,7 @@ export function PatientLogin() {
                   value={formData.password}
                   onChange={(e) => handleChange("password", e.target.value)}
                   required
+                  disabled={otpSent}
                 />
                 <button
                   type="button"
@@ -155,12 +201,32 @@ export function PatientLogin() {
               </div>
             </div>
 
-            {/* 2FA Toggle */}
+            {/* OTP input */}
+            {otpSent && (
+              <div>
+                <Label htmlFor="otp">Enter OTP</Label>
+                <Input
+                  id="otp"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  maxLength={6}
+                  placeholder="Enter OTP"
+                  className="mt-2"
+                  required
+                />
+              </div>
+            )}
+
+            {/* Remember Me + 2FA */}
             <div className="flex items-center justify-between p-4 rounded-xl bg-purple-50 dark:bg-purple-950 border border-purple-200 dark:border-purple-900">
-              <Label
-                htmlFor="twoFactorToggle"
-                className="text-purple-900 dark:text-purple-100 flex items-center gap-2"
-              >
+              <Label htmlFor="remember" className="text-purple-900 dark:text-purple-100">
+                Remember Me
+              </Label>
+              <Switch id="remember" checked={rememberMe} onCheckedChange={setRememberMe} />
+            </div>
+
+            <div className="flex items-center justify-between p-4 rounded-xl bg-purple-50 dark:bg-purple-950 border border-purple-200 dark:border-purple-900">
+              <Label htmlFor="twoFactorToggle" className="text-purple-900 dark:text-purple-100 flex items-center gap-2">
                 <Shield className="w-4 h-4 text-purple-600" />
                 Two-Factor Authentication
               </Label>
@@ -171,20 +237,16 @@ export function PatientLogin() {
               />
             </div>
 
-            {/* 2FA Input */}
             {twoFactorEnabled && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
-                transition={{ duration: 0.3 }}
               >
                 <Label htmlFor="twoFactorCode">2FA Code</Label>
                 <Input
                   id="twoFactorCode"
                   value={formData.twoFactorCode}
-                  onChange={(e) =>
-                    handleChange("twoFactorCode", e.target.value)
-                  }
+                  onChange={(e) => handleChange("twoFactorCode", e.target.value)}
                   className="mt-2"
                   placeholder="Enter 6-digit code"
                   maxLength={6}
@@ -192,19 +254,17 @@ export function PatientLogin() {
               </motion.div>
             )}
 
-            {/* Error Message */}
-            {errorMsg && (
-              <p className="text-center text-red-500 text-sm">{errorMsg}</p>
-            )}
-
-            {/* Submit Button */}
             <Button
               type="submit"
               size="lg"
               disabled={loading}
               className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
             >
-              {loading ? "Logging in..." : "Login to Patient Portal"}
+              {loading
+                ? "Processing..."
+                : otpSent
+                ? "Verify OTP & Login"
+                : "Login to Patient Portal"}
             </Button>
 
             <p className="text-center text-slate-600 dark:text-slate-400">
