@@ -1,12 +1,17 @@
 import nodemailer from "nodemailer";
 import twilio from "twilio";
 
-// Email transporter
+// ✅ Explicit SMTP config (CORRECT WAY)
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false, // MUST be false for 587
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
+  },
+  tls: {
+    ciphers: "SSLv3",
   },
 });
 
@@ -25,8 +30,11 @@ export const sendEmailOTP = async (email: string, otp: string) => {
   }
 };
 
-// ✅ Send OTP via SMS (Twilio)
-const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN);
+// ✅ Send OTP via SMS (UNCHANGED)
+const client = twilio(
+  process.env.TWILIO_SID!,
+  process.env.TWILIO_AUTH_TOKEN!
+);
 
 export const sendSmsOTP = async (phone: string, otp: string) => {
   try {

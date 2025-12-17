@@ -12,7 +12,7 @@ import { Toaster } from './components/ui/sonner';
 interface AuthContextType {
   user: any;
   role: 'doctor' | 'patient' | null;
-  login: (userData: any, userRole: 'doctor' | 'patient', remember?: boolean) => void;
+  login: (userData: any, userRole: 'doctor' | 'patient') => void;
   logout: () => void;
 }
 
@@ -54,43 +54,23 @@ export default function App() {
   const [user, setUser] = useState<any>(null);
   const [role, setRole] = useState<'doctor' | 'patient' | null>(null);
 
-  // ✅ Check localStorage for remembered login
-  useEffect(() => {
-    const storedUser = localStorage.getItem('metabridge_user');
-    const storedRole = localStorage.getItem('metabridge_role');
-    if (storedUser && storedRole) {
-      setUser(JSON.parse(storedUser));
-      setRole(storedRole as 'doctor' | 'patient');
-      setCurrentPage(storedRole === 'doctor' ? 'doctor-dashboard' : 'patient-dashboard');
-    }
-  }, []);
-
-  // ✅ Theme switcher
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
 
   const toggleTheme = () => {
-    setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
   };
 
-  // ✅ Login handler (with Remember Me)
-  const login = (userData: any, userRole: 'doctor' | 'patient', remember = false) => {
+  const login = (userData: any, userRole: 'doctor' | 'patient') => {
     setUser(userData);
     setRole(userRole);
-    if (remember) {
-      localStorage.setItem('metabridge_user', JSON.stringify(userData));
-      localStorage.setItem('metabridge_role', userRole);
-    }
     setCurrentPage(userRole === 'doctor' ? 'doctor-dashboard' : 'patient-dashboard');
   };
 
-  // ✅ Logout clears everything
   const logout = () => {
     setUser(null);
     setRole(null);
-    localStorage.removeItem('metabridge_user');
-    localStorage.removeItem('metabridge_role');
     setCurrentPage('landing');
   };
 
@@ -98,7 +78,6 @@ export default function App() {
     setCurrentPage(page);
   };
 
-  // ✅ Render pages
   const renderPage = () => {
     switch (currentPage) {
       case 'landing':
@@ -114,9 +93,9 @@ export default function App() {
       case 'patient-login':
         return <PatientLogin />;
       case 'doctor-dashboard':
-        return <DoctorDashboard user={user} />;
+        return <DoctorDashboard />;
       case 'patient-dashboard':
-        return <PatientDashboard user={user} />;
+        return <PatientDashboard />;
       default:
         return <LandingPage />;
     }

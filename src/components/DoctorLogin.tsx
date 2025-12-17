@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react';
+import api from "../api/api";
+import { toast } from "sonner";
+import { useState } from 'react';
 import { motion } from 'motion/react';
 import { ArrowLeft, Eye, EyeOff, Stethoscope } from 'lucide-react';
 import { HeartbeatLogo } from './HeartbeatLogo';
@@ -8,96 +10,86 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Switch } from './ui/switch';
-import api from '../api/api';
 
 export function DoctorLogin() {
   const { navigateTo } = useNavigation();
   const { login } = useAuth();
-
   const [showPassword, setShowPassword] = useState(false);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
-  const [otpSent, setOtpSent] = useState(false);
-  const [otp, setOtp] = useState('');
-  const [loading, setLoading] = useState(false);
-
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
     twoFactorCode: ''
   });
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  // ✅ Auto-login if doctor remembered
-  useEffect(() => {
-    const rememberedUser = localStorage.getItem('doctorUser');
-    const token = localStorage.getItem('doctorToken');
-    if (rememberedUser && token) {
-      const parsed = JSON.parse(rememberedUser);
-      login(parsed, 'doctor');
-      navigateTo('doctor-dashboard');
-    }
-  }, [login, navigateTo]);
 
-  // ✅ Input change handler
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  if (!formData.email || !formData.password) {
+    toast.error("Email and password required");
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    // STEP 1: Send OTP
+    await api.post("/doctor/login", {
+      email: formData.email,
+      password: formData.password,
+    });
+
+    toast.success("OTP sent to registered email");
+    setOtpSent(true);
+  } catch (err: any) {
+    toast.error(err.response?.data?.message || "Login failed");
+  } finally {
+    setLoading(false);
+  }
+};
+const handleVerifyOtp = async () => {
+  if (!otp) {
+    toast.error("Enter OTP");
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const res = await api.post("/doctor/verify-otp", {
+      email: formData.email,
+      otp,
+    });
+
+    const { token, doctor } = res.data;
+
+    localStorage.setItem("doctorToken", token);
+
+    login(
+      {
+        name: `Dr. ${doctor.name}`,
+        email: doctor.email,
+      },
+      "doctor"
+    );
+
+    toast.success("Login successful");
+    navigateTo("doctor-dashboard");
+  } catch (err: any) {
+    toast.error(err.response?.data?.message || "Invalid OTP");
+  } finally {
+    setLoading(false);
+  }
+};
+
+
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  // ✅ Submit handler (Login or Verify OTP)
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      if (!otpSent) {
-        // Step 1: attempt login -> backend sends OTP
-        const res = await api.post('/doctor/login', {
-          email: formData.email.trim(),
-          password: formData.password
-        });
-        alert(res.data.message || 'OTP sent successfully to your email/phone.');
-        setOtpSent(true);
-      } else {
-        // Step 2: verify OTP -> backend returns token & doctor
-        const res = await api.post('/doctor/verify-otp', {
-          email: formData.email.trim(),
-          otp: otp.trim()
-        });
-
-        const { token, doctor } = res.data;
-        const doctorData = {
-          id: doctor?.id,
-          name: doctor?.name || formData.name || formData.email.split('@')[0],
-          email: doctor?.email || formData.email
-        };
-
-        // ✅ Save to localStorage only if "Remember Me" checked
-        if (rememberMe) {
-          localStorage.setItem('doctorUser', JSON.stringify(doctorData));
-          localStorage.setItem('doctorToken', token);
-        } else {
-          sessionStorage.setItem('doctorUser', JSON.stringify(doctorData));
-          sessionStorage.setItem('doctorToken', token);
-        }
-
-        // ✅ Update global auth state
-        login(doctorData, 'doctor');
-
-        alert(`✅ Welcome back, Dr. ${doctorData.name}!`);
-        navigateTo('doctor-dashboard');
-      }
-    } catch (err: any) {
-      console.error('Login error:', err);
-      const message =
-        err.response?.data?.message ||
-        (err.code === 'ERR_NETWORK'
-          ? 'Cannot connect to server. Please check your backend.'
-          : 'Login failed. Invalid credentials or OTP.');
-      alert(`❌ ${message}`);
-    } finally {
-      setLoading(false);
-    }
   };
 
   return (
@@ -144,7 +136,6 @@ export function DoctorLogin() {
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Name */}
             <div>
               <Label htmlFor="name">Full Name</Label>
               <Input
@@ -155,11 +146,9 @@ export function DoctorLogin() {
                 className="mt-2"
                 placeholder="John Smith"
                 required
-                disabled={otpSent}
               />
             </div>
 
-            {/* Email */}
             <div>
               <Label htmlFor="email">Email Address</Label>
               <Input
@@ -170,11 +159,9 @@ export function DoctorLogin() {
                 className="mt-2"
                 placeholder="doctor@example.com"
                 required
-                disabled={otpSent}
               />
             </div>
 
-            {/* Password */}
             <div>
               <div className="flex justify-between items-center mb-2">
                 <Label htmlFor="password">Password</Label>
@@ -182,7 +169,6 @@ export function DoctorLogin() {
                   type="button"
                   onClick={() => navigateTo('doctor-signup')}
                   className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
-                  disabled={otpSent}
                 >
                   Forgot password?
                 </button>
@@ -194,7 +180,6 @@ export function DoctorLogin() {
                   value={formData.password}
                   onChange={(e) => handleChange('password', e.target.value)}
                   required
-                  disabled={otpSent}
                 />
                 <button
                   type="button"
@@ -205,32 +190,22 @@ export function DoctorLogin() {
                 </button>
               </div>
             </div>
-
-            {/* OTP Input */}
             {otpSent && (
-              <div>
-                <Label htmlFor="otp">Enter OTP</Label>
+              <motion.div
+                 initial={{ opacity: 0, height: 0 }}
+                 animate={{ opacity: 1, height: "auto" }}
+              >
+                <Label>OTP</Label>
                 <Input
-                  id="otp"
                   value={otp}
                   onChange={(e) => setOtp(e.target.value)}
+                  placeholder="Enter 6-digit OTP"
                   maxLength={6}
-                  placeholder="Enter OTP"
                   className="mt-2"
-                  required
                 />
-              </div>
+              </motion.div>
             )}
 
-            {/* Remember Me */}
-            <div className="flex items-center justify-between p-4 rounded-xl bg-indigo-50 dark:bg-indigo-950 border border-indigo-200 dark:border-indigo-900">
-              <Label htmlFor="remember" className="text-indigo-900 dark:text-indigo-100">
-                Remember Me
-              </Label>
-              <Switch id="remember" checked={rememberMe} onCheckedChange={setRememberMe} />
-            </div>
-
-            {/* 2FA Switch */}
             <div className="flex items-center justify-between p-4 rounded-xl bg-indigo-50 dark:bg-indigo-950 border border-indigo-200 dark:border-indigo-900">
               <Label htmlFor="twoFactorToggle" className="text-indigo-900 dark:text-indigo-100">
                 Two-Factor Authentication
@@ -242,7 +217,6 @@ export function DoctorLogin() {
               />
             </div>
 
-            {/* Optional 2FA Code input */}
             {twoFactorEnabled && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
@@ -260,20 +234,17 @@ export function DoctorLogin() {
               </motion.div>
             )}
 
-            {/* Submit */}
-            <Button
-              type="submit"
-              size="lg"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
-            >
-              {loading
-                ? 'Processing...'
-                : otpSent
-                ? 'Verify OTP & Login'
-                : 'Login to Provider Portal'}
-            </Button>
+            {!otpSent ? (
+              <Button type="submit" size="lg" className="w-full">
+                {loading ? "Sending OTP..." : "Login"}
+              </Button>
+            ) : (
+              <Button type="button" size="lg" onClick={handleVerifyOtp} className="w-full">
+                {loading ? "Verifying..." : "Verify OTP"}
+              </Button>
+            )}
 
+            
             <p className="text-center text-slate-600 dark:text-slate-400">
               Don't have an account?{' '}
               <button

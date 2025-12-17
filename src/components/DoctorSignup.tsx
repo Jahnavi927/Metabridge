@@ -8,17 +8,12 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Switch } from './ui/switch';
-import api from '../api/api';
-
 
 export function DoctorSignup() {
   const { navigateTo } = useNavigation();
   const { login } = useAuth();
-
   const [showPassword, setShowPassword] = useState(false);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(true);
-  const [loading, setLoading] = useState(false);
-
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -32,55 +27,14 @@ export function DoctorSignup() {
     yearsOfExperience: ''
   });
 
-  const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Simulate signup
+    login({ name: `Dr. ${formData.firstName} ${formData.lastName}`, email: formData.email }, 'doctor');
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // ✅ Basic client-side validation
-    if (formData.password !== formData.confirmPassword) {
-      alert('❌ Passwords do not match!');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      // ✅ Send data to backend
-      const res = await api.post('/doctor/signup', {
-        name: `${formData.firstName} ${formData.lastName}`,
-        email: formData.email,
-        password: formData.password,
-        specialization: formData.specialty,
-        license_number: formData.licenseNumber,
-        hospital_name: formData.hospital,
-        years_of_experience: formData.yearsOfExperience,
-        phone: formData.phone,
-        twoFactorEnabled
-      });
-
-      const { doctor, token } = res.data;
-
-      // ✅ Store token in localStorage
-      localStorage.setItem('doctorToken', token);
-
-      // ✅ Auto-login
-      login({ name: `Dr. ${doctor.name}`, email: doctor.email }, 'doctor');
-
-      alert('🎉 Signup successful! Redirecting to dashboard...');
-      navigateTo('doctor-dashboard');
-    } catch (err: any) {
-      console.error('Signup error:', err);
-      const message =
-        err.response?.data?.message ||
-        (err.code === 'ERR_NETWORK'
-          ? 'Cannot connect to backend. Please check if your server is running.'
-          : 'Signup failed. Please check your details.');
-      alert(`❌ ${message}`);
-    } finally {
-      setLoading(false);
-    }
+  const handleChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   return (
@@ -131,14 +85,14 @@ export function DoctorSignup() {
             transition={{ delay: 0.2 }}
             className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto"
           >
-            {/* Left Column - Personal Info */}
+            {/* Left Column - Personal Information */}
             <div className="space-y-6">
               <div className="p-8 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl">
                 <h2 className="text-2xl mb-6 text-slate-900 dark:text-white flex items-center gap-2">
                   <CheckCircle className="w-6 h-6 text-indigo-600" />
                   Personal Information
                 </h2>
-
+                
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -222,14 +176,14 @@ export function DoctorSignup() {
               </div>
             </div>
 
-            {/* Right Column - Professional Info */}
+            {/* Right Column - Professional Credentials */}
             <div className="space-y-6">
               <div className="p-8 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl">
                 <h2 className="text-2xl mb-6 text-slate-900 dark:text-white flex items-center gap-2">
                   <Shield className="w-6 h-6 text-indigo-600" />
                   Professional Credentials
                 </h2>
-
+                
                 <div className="space-y-4">
                   <div>
                     <Label htmlFor="licenseNumber">Medical License Number</Label>
@@ -300,10 +254,9 @@ export function DoctorSignup() {
               <Button
                 type="submit"
                 size="lg"
-                disabled={loading}
                 className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
               >
-                {loading ? 'Creating Account...' : 'Create Provider Account'}
+                Create Provider Account
               </Button>
 
               <p className="text-center text-slate-600 dark:text-slate-400">

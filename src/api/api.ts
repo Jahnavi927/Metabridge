@@ -1,24 +1,26 @@
-// ✅ src/api.ts
+// src/api.ts
 import axios from "axios";
 
-// 🔹 Create a single axios instance
 const api = axios.create({
-  baseURL: "http://localhost:5000/api", // your backend base URL
-  withCredentials: false,                // set true only if you use cookies/sessions
-  headers: {
-    "Content-Type": "application/json",
-  },
+  baseURL: "http://localhost:5000/api", // ✅ backend base
+  withCredentials: false,               // ❌ using JWT, not cookies
 });
 
-// 🔹 Add an interceptor to attach JWT tokens automatically
+/* ===========================
+   REQUEST INTERCEPTOR
+   Automatically attach JWT
+=========================== */
 api.interceptors.request.use(
   (config) => {
     const doctorToken = localStorage.getItem("doctorToken");
     const patientToken = localStorage.getItem("patientToken");
 
+    // ✅ Doctor routes get doctor token
     if (doctorToken) {
       config.headers.Authorization = `Bearer ${doctorToken}`;
-    } else if (patientToken) {
+    }
+    // ✅ Patient routes fallback
+    else if (patientToken) {
       config.headers.Authorization = `Bearer ${patientToken}`;
     }
 
@@ -27,14 +29,26 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// 🔹 Optional: response interceptor to handle common errors
+/* ===========================
+   RESPONSE INTERCEPTOR
+=========================== */
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      console.warn("⚠️ Unauthorized — redirecting to login...");
-      // You can add a redirect logic here
+    if (error.response) {
+      console.error(
+        "API Error:",
+        error.response.status,
+        error.response.data
+      );
+
+      if (error.response.status === 401) {
+        console.warn("Unauthorized — token expired or invalid");
+      }
+    } else {
+      console.error("Network / CORS error:", error.message);
     }
+
     return Promise.reject(error);
   }
 );

@@ -102,8 +102,6 @@ export function LandingPage() {
         </div>
       </section>
 
-      
-
       {/* Benefits Section */}
       <section className="py-20 px-6">
         <div className="container mx-auto max-w-4xl">
