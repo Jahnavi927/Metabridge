@@ -1,5 +1,8 @@
 # MetaFed System (Metabridge)
 
+## 🎥 Demo Video
+[![Watch Demo](https://img.youtube.com/vi/KN_wN-B2x1w/0.jpg)](https://youtu.be/KN_wN-B2x1w)
+
 ## Overview
 MetaFed is a multi-tier application that enables structured data flow between frontend, backend, database, and machine learning services.
 
