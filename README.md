@@ -36,9 +36,7 @@ MetaFed is a multi-tier application that enables structured data flow between fr
 - API design and integration  
 - Understanding of system architecture  
 - Working in a team-based project environment  
-  # Healthcare Web App UI Design
-
-  This is a code bundle for Healthcare Web App UI Design. The original project is available at https://www.figma.com/design/4Y5SOZ0e6AXvHgniw3NKFo/Healthcare-Web-App-UI-Design.
+  
 
   ## Running the code
 
